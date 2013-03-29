@@ -1,27 +1,25 @@
 package com.kyrlach.serious
 
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
-import com.kyrlach.serious.json.JSONReader
 import scala.io.Source
 
-abstract class RequestHandler {
-  def apply(req: HttpServletRequest, resp: HttpServletResponse): Unit
+import org.w3c.dom.Document
+
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
+import javax.xml.parsers.DocumentBuilderFactory
+
+class RequestHandler[A : ResponseWriter](rh: HttpServletRequest => A) {
+  def apply(req: HttpServletRequest, resp: HttpServletResponse): Unit = implicitly[ResponseWriter[A]].apply(rh(req), resp)
 }
 
 object RequestHandler {
-  implicit def f1toRH[A : ResponseWriter](f: () => A): RequestHandler = {
-    new RequestHandler {
-      override def apply(req: HttpServletRequest, resp: HttpServletResponse): Unit = implicitly[ResponseWriter[A]].apply(f(), resp)
-    }
+  def requestBody(implicit request: HttpServletRequest): String = Source.fromInputStream(request.getInputStream).mkString("")
+  def document(path: String): Document = {
+    val factory = DocumentBuilderFactory.newInstance
+    val builder = factory.newDocumentBuilder
+    builder.parse(this.getClass().getResourceAsStream(path))
   }
-  implicit def f2toRH[A : JSONReader, B : ResponseWriter](f: A => B): RequestHandler = {
-    new RequestHandler {
-      override def apply(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
-        implicitly[JSONReader[A]].toObject(Source.fromInputStream(req.getInputStream).mkString("")) map { a =>
-          implicitly[ResponseWriter[B]].apply(f(a), resp)
-        }
-      }
-    }
-  }
+  
+  def parameter(name: String)(implicit req: HttpServletRequest): Option[String] = Option(req.getParameter(name))
+  def parameters(name: String)(implicit req: HttpServletRequest): Option[List[String]] = Option(req.getParameterValues(name)).map(_.toList)
 }

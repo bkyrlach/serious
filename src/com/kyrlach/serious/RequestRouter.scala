@@ -5,15 +5,15 @@ import javax.servlet.http.HttpServletResponse
 
 object RequestRouter {
   
-  def handleGet(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
-    val uri = req.getRequestURI().drop(9)
-    
+  def route(req: HttpServletRequest, resp: HttpServletResponse, method: String): Unit = {
+    val rm = method match {
+      case "GET" => GET
+      case "POST" => POST
+    }
+    rout(req, resp, rm)
   }
   
-  def handlePost(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
-    val uri = req.getRequestURI().drop(9)
-    ServiceConfig.executeService(POST, uri, req, resp)
-  }
+  def rout(req: HttpServletRequest, resp: HttpServletResponse, method: RequestMethod): Unit = ServiceConfig.executeService(method, req.getRequestURI, req, resp)
   
   private def writeResponse[A : ResponseWriter](a: A, resp: HttpServletResponse): Unit = implicitly[ResponseWriter[A]].apply(a, resp)
   
